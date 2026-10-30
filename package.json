@@ -1,1 +1,0 @@
-{"name":"chronicle-1941-1945","private":true,"version":"2.0.0","type":"module","scripts":{"dev":"vite --host 127.0.0.1","build":"vite build","preview":"vite preview --host 127.0.0.1"},"dependencies":{"three":"0.184.0","gsap":"3.13.0","lenis":"1.2.3","@unseenco/taxi":"1.9.0"},"devDependencies":{"vite":"6.1.0"}}
