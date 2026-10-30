@@ -71,9 +71,10 @@ for h in heads:
     pairs = mpairs if h.group(2).startswith('motion') else tpairs
     for item in h.group(1).split(','):
         parts = [p.strip() for p in item.strip().split(' as ')]
-        orig, alias = parts[0], parts[-1]
-        assert alias in pairs, (h.group(2), alias)
-        subs.append((alias, pairs[alias]))
+        # `X as Y` -> локальное имя в модуле X, импортируется как Y
+        local_in_lib, alias = parts[0], parts[-1]
+        assert local_in_lib in pairs, (h.group(2), local_in_lib, alias)
+        subs.append((alias, pairs[local_in_lib]))
     consumed_end = max(consumed_end, h.end())
 
 # тело приложения: вырезаем import'ы и modulepreload-polifill между ними
