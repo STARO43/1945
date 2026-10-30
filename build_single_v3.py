@@ -19,7 +19,7 @@ archive = (root / 'archive.html').read_text()
 
 # ---------- имена asssetов берём из самих страниц ----------
 def asset(page, needle):
-    m = re.search(r'\./assets/([A-Za-z0-9_.-]+' + needle + r')', page)
+    m = re.search(r'(?:\./)?assets/([A-Za-z0-9_.-]*' + needle + r')', page)
     assert m, "не найден ассет: " + needle
     return m.group(1)
 
@@ -27,7 +27,7 @@ app_name = asset(index, r'app-[A-Za-z0-9_-]+\.js')
 css_name = asset(index, r'app-[A-Za-z0-9_-]+\.css')
 appjs    = (root / 'assets' / app_name).read_text()
 
-imports = re.findall(r'import\s*\{[^}]*\}\s*from"\./([\w.-]+)\.js"', appjs)
+imports = re.findall(r'import\s*\{[^}]*\}\s*from"\.?/?([\w.-]+)\.js"', appjs)
 assert len(imports) == 2, imports
 MOTION, THREE = imports[0], imports[1]
 motion = strip = (root / 'assets' / (MOTION + '.js')).read_text()
@@ -82,7 +82,7 @@ def export_map(src, tag):
 mpairs, tpairs = export_map(motion, MOTION), export_map(three, THREE)
 
 # ---------- 3. склейка модулей ----------
-heads = list(re.finditer(r'import\s*\{([^}]*)\}\s*from\s*"\./([\w.-]+)\.js";?', appjs))
+heads = list(re.finditer(r'import\s*\{([^}]*)\}\s*from\s*"\.?/?([\w.-]+)\.js";?', appjs))
 assert len(heads) == 2, heads
 
 subs = []                              # (алиас в приложении, локальное имя в библиотеке)
@@ -160,18 +160,23 @@ for old, new in [
     renderer_src = renderer_src.replace(old, new)
 renderer_src = renderer_src.replace('class %s{' % mpairs['R'], 'class SinglePageRenderer{')
 
-# приложение: наш класс Taxi + наш рендерер
+# приложение: наш класс Taxi + наш рендерер (искажаем по локальному имени класса в исходном appjs)
 marker = 'new %s({transitions:{default:' % alias_to_local['ka']
-i = app_body.find(marker)
+i = appjs.find(marker)
 assert i != -1, "не найден вызов Taxi в приложении"
-j = app_body.find('})', i + len(marker))
+j = appjs.find('})', i + len(marker))
 assert j != -1
-old_call = app_body[i:j + 2]
+old_call = appjs[i:j + 2]
 opts = old_call[old_call.index('{') + 1:old_call.rindex('}')].rstrip(',')
-renderer_alias = '__imp_%s__' % 'mn'
-new_call = ("new SinglePageTaxi({%s,renderers:{default:SinglePageRenderer,home:SinglePageRenderer,"
-            "archive:SinglePageRenderer}})" % opts)
-app_body = app_body[:i] + new_call + app_body[j + 2:]
+new_opts = re.sub(r'(?<![\w$.])' + re.escape(alias_to_local['mn']) + r'(?![\w$])',
+                  'SinglePageRenderer', opts)
+new_marker = marker.replace(alias_to_local['ka'], 'SinglePageTaxi').replace(new_opts[:20], new_opts[:20])
+new_opts_marker = 'new SinglePageTaxi({transitions:{default:'
+k = app_body.find(new_opts_marker)
+assert k != -1, "не найден вызов Taxi в app_body"
+m = app_body.find('})', k + len(new_opts_marker))
+assert m != -1
+app_body = app_body[:k] + ('new SinglePageTaxi({' + new_opts + '})') + app_body[m + 2:]
 
 # переменная экземпляра Taxi (в приложении она локальная) — отдаём её роутеру
 m_ca = re.search(r'(?:let|const|var)\s+(\w+)\s*=\s*new SinglePageTaxi\(', app_body)
@@ -247,14 +252,14 @@ assert 'SinglePageTaxi' in bundle and '__SP_VIEWS__' in bundle
 # ---------- 6. сборка HTML ----------
 head = (
     '<!doctype html>\n<html lang="ru" class="no-js"><head>'
-    '<meta charset="UTF-8">'
-    '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    '<meta name="theme-color" content="#151611">'
-    '<meta name="description" content="История Великой Отечественной войны: интерактивная хроника, архивные фотографии и документы.">'
-    '<title>%s</title>' % titles['home']
-    '<link rel="stylesheet" href="./fonts.css">'
-    '<link rel="stylesheet" crossorigin href="./assets/%s">' % css_name
-    + ''.join('<link rel="modulepreload" href="./assets/%s">' % n for n in (app_name, MOTION + '.js', THREE + '.js'))
+    + '<meta charset="UTF-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<meta name="theme-color" content="#151611">'
+    + '<meta name="description" content="История Великой Отечественной войны: интерактивная хроника, архивные фотографии и документы.">'
+    + '<title>%s</title>' % titles['home']
+    + '<link rel="stylesheet" href="./fonts.css">'
+    + '<link rel="stylesheet" crossorigin href="./assets/' + css_name + '">'
+    + ''.join('<link rel="modulepreload" href="./assets/' + n + '">' for n in (app_name, MOTION + '.js', THREE + '.js'))
     + '</head>'
 )
 
