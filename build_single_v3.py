@@ -121,8 +121,8 @@ taxi_src = cut_class(motion, TAXI_LOCAL, MOTION)
 
 SP_METHODS = r"""
 spId(t){const h=String(t);return h.indexOf("archive")>=0?"archive":"home"}
-spHash(id){return id==="archive"?"#archive":""}
-spUrl(id){return location.origin+location.pathname+location.search+this.spHash(id)}
+spHash(id){return id==="archive"?("./"+__SP_FILE__+".html#archive"):("./"+__SP_FILE__+".html")}
+spUrl(id){const d=location.href.split("/").slice(0,-1).join("/")+"/";return d+__SP_FILE__+this.spHash(id)}
 spEntry(id,url){const c=this._views[id];return{page:{dataset:{taxiView:id},title:__SP_TITLE__[id]},content:c,finalUrl:url,skipCache:!0,scripts:[],styles:[],title:__SP_TITLE__[id],renderer:new this.defaultRenderer({wrapper:this.wrapper,title:__SP_TITLE__[id],content:c,page:{dataset:{taxiView:id}}})}}
 chooseTransition(t){if(t)return this.transitions[t];const e=this.router&&this.router.findMatch(this.currentLocation,this.targetLocation);return e?this.transitions[e]:this.defaultTransition}
 navigateTo(t,e=!1,i=!1){const id=this.spId(typeof t==="object"?t.raw:t);if(!this.allowInterruption&&this.isTransitioning)return Promise.reject(new Error(tr));const target=this._views[id];if(!target)return Promise.reject(new Error("Unknown view: "+id));const url=this.spUrl(id);if(this.currentCacheEntry&&this.currentCacheEntry.content===target){i!=="popstate"&&window.history.replaceState({},"",url);return Promise.resolve()}this.isTransitioning=!0,this.isPopping=i==="popstate",this.targetLocation=yt(url),this.popTarget=i==="popstate"?window.location.href:url;const entry=this.spEntry(id,url);entry.renderer.createDom();const trans=new(this.chooseTransition(e))({wrapper:this.wrapper});return bt.emit("NAVIGATE_OUT",{from:this.currentCacheEntry,trigger:i}),new Promise(r=>{this.currentCacheEntry.renderer.leave(trans,i,this.removeOldContent).then(()=>{i!=="popstate"&&window.history.pushState({},"",url),this.currentLocation=yt(url),this.popTarget=this.currentLocation.href,this.currentCacheEntry=entry,document.title=entry.title,bt.emit("NAVIGATE_IN",{from:null,to:entry,trigger:i}),entry.renderer.enter(trans,i).then(()=>{bt.emit("NAVIGATE_END",{from:entry,to:entry,trigger:i}),this.isTransitioning=!1,this.isPopping=!1,r()})})})}
@@ -161,28 +161,30 @@ for old, new in [
 renderer_src = renderer_src.replace('class %s{' % mpairs['R'], 'class SinglePageRenderer{')
 
 # приложение: наш класс Taxi + наш рендерер (искажаем по локальному имени класса в исходном appjs)
-marker = 'new %s({transitions:{default:' % alias_to_local['ka']
-i = appjs.find(marker)
-assert i != -1, "не найден вызов Taxi в приложении"
-j = appjs.find('})', i + len(marker))
-assert j != -1
-old_call = appjs[i:j + 2]
-opts = old_call[old_call.index('{') + 1:old_call.rindex('}')].rstrip(',')
-new_opts = re.sub(r'(?<![\w$.])' + re.escape(alias_to_local['mn']) + r'(?![\w$])',
-                  'SinglePageRenderer', opts)
-new_marker = marker.replace(alias_to_local['ka'], 'SinglePageTaxi').replace(new_opts[:20], new_opts[:20])
-new_opts_marker = 'new SinglePageTaxi({transitions:{default:'
-k = app_body.find(new_opts_marker)
+# в app_body импортированные алиасы заменены на __imp_<alias>__ — ищем сразу там
+body_marker = 'new __imp_ka__({transitions:{default:'
+k = app_body.find(body_marker)
 assert k != -1, "не найден вызов Taxi в app_body"
-m = app_body.find('})', k + len(new_opts_marker))
+m = app_body.find('})', k + len(body_marker))
 assert m != -1
-app_body = app_body[:k] + ('new SinglePageTaxi({' + new_opts + '})') + app_body[m + 2:]
+body_old = app_body[k:m + 2]
+new_opts = re.sub(r'(?<![\w$.])__imp_mn__(?![\w$])', 'SinglePageRenderer',
+                  body_old[len(body_marker):])
+new_opts = new_opts[:new_opts.rindex('})')]
+app_body = app_body[:k] + ('new SinglePageTaxi({transitions:{default:' + new_opts + '})') + app_body[m + 2:]
 
-# переменная экземпляра Taxi (в приложении она локальная) — отдаём её роутеру
-m_ca = re.search(r'(?:let|const|var)\s+(\w+)\s*=\s*new SinglePageTaxi\(', app_body)
+# переменная экземпляра Taxi: в appjs это `let Ca;try{Ca=new ka({...})}catch...`
+m_ca = re.search(r'(?:let|const|var)\s+(\w+)\s*;\s*try\{\1\s*=\s*new ka\(', appjs)
 assert m_ca, "не найдено объявление экземпляра Taxi"
 ca_decl = m_ca.group(1)
-app_body = app_body[:m_ca.end()] + ',window.__SP_TAXI_INSTANCE__=%s' % ca_decl + app_body[m_ca.end():]
+hook = ',window.__SP_TAXI_INSTANCE__=%s' % ca_decl
+
+# вставляем хук сразу после закрывающей `})` вызова конструктора (в app_body уже SinglePageTaxi)
+kb = app_body.find('new SinglePageTaxi({transitions:{default:')
+assert kb != -1
+mb = app_body.find('})', kb)
+assert mb != -1
+app_body = app_body[:mb + 2] + hook + app_body[mb + 2:]
 
 # Lenis-экземпляр приложения — для плавной hash-навигации
 m_lenis = re.search(r'(?:let|const|var)\s+(\w+)\s*=\s*new __imp_mo__\(', app_body)
@@ -194,6 +196,7 @@ if m_lenis:
 # ---------- 5. шаблонные куски рантайма ----------
 SP_RUNTIME = r"""
 // ==== одностраничный роутер: живой DOM вместо fetch ====
+window.__SP_FILE__ = location.pathname.split('/').pop() || 'single.html';
 const __SP_HOME__ = document.querySelector('[data-taxi-view="home"]');
 const __SP_TPL__  = document.getElementById('sp-archive');
 const __SP_ARCHIVE__ = (() => {
@@ -214,17 +217,19 @@ const __SP_TITLE__  = {
     document.querySelectorAll('a[href^="./"], a[href^="index.html"], a[href^="archive.html"]').forEach(a => {
       a.setAttribute('data-taxi-ignore', '');
     });
-    const fix = (s) => s.replace(/\.\/(?:index|archive)\.html/g, 'single.html');
+    const here = location.pathname.split('/').pop() || 'single.html';
     document.querySelectorAll('a[href]').forEach(a => {
-      const h = a.getAttribute('href');
-      if (/^(?:\.\/)?(?:index|archive)\.html/.test(h)) a.setAttribute('href', fix(h));
+      let h = a.getAttribute('href');
+      if (/^(?:\.\/)?index\.html/.test(h)) a.setAttribute('href', here + h.replace(/^(?:\.\/)?index\.html/, ''));
+      else if (/^(?:\.\/)?archive\.html/.test(h)) a.setAttribute('href', here + (h.indexOf('#') >= 0 ? '#archive' : '#archive'));
     });
     return;
   }
+  const wantArchive = () => location.pathname.indexOf('archive') >= 0 || location.hash.indexOf('archive') === 0;
   const toArchive = () => {
     const t = window.__SP_TAXI_INSTANCE__;
     if (!t) return setTimeout(toArchive, 60);
-    if (location.hash === '#archive') t.navigateTo('#archive', false, false).catch(e => console.warn(e));
+    if (wantArchive()) t.navigateTo('#archive', false, false).catch(e => console.warn(e));
   };
   toArchive();
 })();
@@ -259,7 +264,7 @@ head = (
     + '<title>%s</title>' % titles['home']
     + '<link rel="stylesheet" href="./fonts.css">'
     + '<link rel="stylesheet" crossorigin href="./assets/' + css_name + '">'
-    + ''.join('<link rel="modulepreload" href="./assets/' + n + '">' for n in (app_name, MOTION + '.js', THREE + '.js'))
+    # modulepreload не нужен: JS теперь инлайн-модуль в этом же файле
     + '</head>'
 )
 
