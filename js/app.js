@@ -10,7 +10,8 @@
 
   const doc = document;
   const root = doc.documentElement;
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Анимации включены всегда, независимо от системной настройки reduced motion.
+  const reduced = false;
   const $ = (sel, scope = doc) => scope.querySelector(sel);
   const $$ = (sel, scope = doc) => Array.from(scope.querySelectorAll(sel));
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));

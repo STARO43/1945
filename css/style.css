@@ -311,23 +311,6 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
-/* ---------- Уважаем «уменьшить движение» ---------- */
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  .marquee-track {
-    animation: none !important;
-  }
-  .mobile-menu,
-  .mobile-menu nav a,
-  .reader-panel,
-  .reader-backdrop,
-  .chronicle-body {
-    transition-duration: 0.01ms !important;
-  }
-}
-
 /* ---------- Мобильные мелочи ---------- */
 @media (max-width: 640px) {
   .reader-panel {
