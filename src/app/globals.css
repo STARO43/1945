@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #e9e7e1;
+  --color-paper-soft: #f2f0ea;
+  --color-ink: #0b0b0a;
+  --color-ink-soft: #141412;
+  --color-grass: #1ec15e;
+  --color-grass-bright: #3ee87e;
+  --color-grass-dim: #0e5c2e;
+  --color-smoke: #6f6e68;
+  --color-fog: #a8a69f;
+
+  --font-sans: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --animate-marquee: marquee 32s linear infinite;
+  --animate-spin-slow: spin 14s linear infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-grass);
+  color: #06130a;
+}
+
+/* скроллбар */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #111110; }
+::-webkit-scrollbar-thumb { background: #3a3a37; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-grass); }
+
+/* ————— Утилиты стиля ————— */
+
+/* моно-метка как в шапке: фон-плашка, ВЕРХНИЙ РЕГИСТР */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.mono-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  border: 1px solid currentColor;
+  padding: 3px 8px 4px;
+  white-space: nowrap;
+}
+
+.btn-solid {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: var(--color-ink);
+  color: #fff;
+  padding: 14px 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: background .25s, color .25s, transform .25s;
+}
+.btn-solid:hover { background: var(--color-grass); color: #06130a; transform: translateY(-2px); }
+
+.btn-ghost {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid var(--color-ink);
+  padding: 13px 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: background .25s, color .25s, transform .25s;
+}
+.btn-ghost:hover { background: var(--color-ink); color: #fff; transform: translateY(-2px); }
+
+.dot-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-grass);
+  box-shadow: 0 0 10px 1px rgba(62, 232, 126, .55);
+  animation: pulse-dot 2.2s ease-in-out infinite;
+  flex: none;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .55; transform: scale(.8); }
+}
+
+/* пунктирная линия-разделитель */
+.dotted-rule {
+  border: none;
+  border-top: 1px dashed #9b9a93;
+}
+
+/* зерно поверх всего — лёгкая плёнка */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  z-index: 80;
+  opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain-shift 9s steps(6) infinite;
+}
+@keyframes grain-shift {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -3%); }
+  60% { transform: translate(-2%, -2%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* строка-подзаголовок секции в стиле «<01/05> ТЕКСТ» */
+.scene-counter {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--color-grass-bright);
+}
+
+/* бегущая строка */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: var(--animate-marquee);
+}
+
+/* каретка-курсор */
+@media (pointer: fine) {
+  .cursor-none-desktop, .cursor-none-desktop a, .cursor-none-desktop button {
+    cursor: none;
+  }
+}
+
+/* фикс: строка заголовка с плотным трекингом */
+.headline {
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  font-weight: 700;
+}
